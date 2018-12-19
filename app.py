@@ -12,7 +12,7 @@ import tkinter.filedialog as dir
 from tkinter import PhotoImage,Label,Scrollbar,HORIZONTAL,VERTICAL
 import shutil
 '''
-这是一个基于tkinter库的图像标注工具，目前支持标注矩形区域，标注文件支持txt格式
+这是一个基于tkinter库的图像标注工具，目前支持标注矩形区域和散点区域，标注文件支持XML和JSON格式
 '''
 
 IMAGE_FILE_TYPE = ['jpg','JPG','PNG','png','bmp','BMP']
@@ -28,11 +28,11 @@ class MainGUI(tk.Frame):
         self.image_names = []
         self.image_label = []
         self.work_dir = ''
-        self.factor = 1.0 #图像缩放因子
+        self.factor = 0 #图像缩放因子
         self.x = 0;self.y = 0 #存储坐标
         self.clicked = False
         self.save_lables = 'False'
-
+        self.zoom=False
         self.number = 0 #用于矩形画图时直线提醒
 
         self.lable_Type = 0 #标注类型
@@ -210,17 +210,21 @@ class MainGUI(tk.Frame):
         self.revise_lable = ttk.Button(self.frm_control, text='修改标注', state=tk.DISABLED, command=self.revise_lable_file)
         self.revise_lable.grid(row=2, column=2, padx=5, sticky=tk.NSEW)
 
-        self.up_zoom = ttk.Button(self.frm_control, text='放大图像', state=tk.DISABLED, command=self.zoomin_image)
-        self.up_zoom.grid(row=1, column=3, padx=5, sticky=tk.NSEW)
+        self.zoomin = ttk.Button(self.frm_control, text='放大图像', state=tk.DISABLED, command=self.zoomin_image)
+        self.zoomin.grid(row=1, column=3, padx=5, sticky=tk.NSEW)
 
-        self.zoomin = ttk.Button(self.frm_control, text='缩小图像', state=tk.DISABLED, command=self.zoomout_image)
+        self.zoomout = ttk.Button(self.frm_control, text='缩小图像', state=tk.DISABLED, command=self.zoomout_image)
         self.zoomout.grid(row=2, column=3, padx=5, sticky=tk.NSEW)
 
     def zoomin_image(self):
-        self.factor=1.2
-    def zoomup_image(self):
-        self.factor=1.2
+        self.zoom=True
+        self.factor=self.factor+0.05
+        self.showImage(self.image_paths[self.image_index])
 
+    def zoomout_image(self):
+        self.zoom=True
+        self.factor=self.factor-0.05
+        self.showImage(self.image_paths[self.image_index])
 
     def revise_lable_file(self):
         img_dir = []
@@ -278,8 +282,8 @@ class MainGUI(tk.Frame):
 
             self.revise_lable.config(state=tk.ACTIVE)
             self.label_rect.config(state=tk.ACTIVE)
-            self.up_zoom.config(state=tk.ACTIVE)
-            self.down_zoom.config(state=tk.ACTIVE)
+            self.zoomin.config(state=tk.ACTIVE)
+            self.zoomout.config(state=tk.ACTIVE)
             self.save_lable.config(state=tk.ACTIVE)
         else:
             mb.showinfo("提醒", "目录选择失败！")
@@ -327,11 +331,11 @@ class MainGUI(tk.Frame):
                 self.image_names.append(file_list[i])
 
     #在canvas上显示图片
-    def showImage1(self,image_path):
-        img = Image.open(image_path)
 
 
     def showImage(self,image_path):
+        global img
+
         img = Image.open(image_path)
         w, h = img.size
         img = self.img_resize(img,w,h,800,600)
@@ -405,14 +409,20 @@ class MainGUI(tk.Frame):
 
     #重置大小
     def img_resize(self,pil_image,w, h, w_box=0, h_box=0):
-        if w_box == 0 or h_box == 0:
-            w_box = w
-            h_box = h
-        f1 = 1.0 * w_box / w
-        f2 = 1.0 * h_box / h
-        self.factor = min([f1, f2])
-        width = int(w * self.factor)
-        height = int(h * self.factor)
+        if self.zoom:
+            width = int(w * self.factor)
+            height = int(h * self.factor)
+            self.zoom=False
+        else:
+            if w_box == 0 or h_box == 0:
+                w_box = w
+                h_box = h
+            f1 = 1.0 * w_box / w
+            f2 = 1.0 * h_box / h
+            self.factor = min([f1, f2])
+            width = int(w * self.factor)
+            height = int(h * self.factor)
+
         return pil_image.resize((width, height), Image.ANTIALIAS)
 
 
