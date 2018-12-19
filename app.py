@@ -79,13 +79,7 @@ class MainGUI(tk.Frame):
 
         self.canvas = tk.Canvas(canvas_frame,background='white')
         self.canvas.grid(row=0, column=0,sticky=tk.NSEW)
-        scrollY = Scrollbar(canvas_frame, orient=VERTICAL, command=self.canvas.yview)
-        scrollY.grid(row=0, column=1, sticky='ns')
-
-        scrollX = Scrollbar(canvas_frame, orient=HORIZONTAL, command=self.canvas.yview)
-        scrollX.grid(row=1, column=0, sticky='ew')
-        self.canvas['xscrollcommand'] = scrollX.set
-        self.canvas['yscrollcommand'] = scrollY.set
+      
 
 
         self.canvas.bind("<Motion>", self.mouse_on_canvas)#self.canvas.bind("<B1-Motion>", self.mouse_move)
@@ -216,6 +210,10 @@ class MainGUI(tk.Frame):
         self.zoomout = ttk.Button(self.frm_control, text='缩小图像', state=tk.DISABLED, command=self.zoomout_image)
         self.zoomout.grid(row=2, column=3, padx=5, sticky=tk.NSEW)
 
+
+
+    # 滚轮往下滚动，缩小
+
     def zoomin_image(self):
         self.zoom=True
         self.factor=self.factor+0.05
@@ -223,8 +221,9 @@ class MainGUI(tk.Frame):
 
     def zoomout_image(self):
         self.zoom=True
-        self.factor=self.factor-0.05
-        self.showImage(self.image_paths[self.image_index])
+        if self.factor>0.05:
+           self.factor=self.factor-0.05
+           self.showImage(self.image_paths[self.image_index])
 
     def revise_lable_file(self):
         img_dir = []
