@@ -9,7 +9,7 @@ from tkinter import simpledialog
 from PIL import Image, ImageTk
 import tkinter.messagebox as mb
 import tkinter.filedialog as dir
-from tkinter import PhotoImage,Label,Scrollbar,HORIZONTAL,VERTICAL
+from tkinter import PhotoImage,Label,Scrollbar,HORIZONTAL,VERTICAL,BOTTOM,X,Y,RIGHT
 import shutil
 '''
 这是一个基于tkinter库的图像标注工具，目前支持标注矩形区域和散点区域，标注文件支持XML和JSON格式
@@ -52,7 +52,7 @@ class MainGUI(tk.Frame):
         # 设置grid布局位置
         self.grid(row=0, column=0, sticky=tk.NSEW)
         # 设置行列权重，保证内建子组件会拉伸填充
-        self.rowconfigure(0, weight=1);
+        self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
 
         #水平方向推拉组件
@@ -77,9 +77,10 @@ class MainGUI(tk.Frame):
         canvas_frame = ttk.Frame(self.frame_right)
         canvas_frame.grid(row=2, column=0)
 
+
+
         self.canvas = tk.Canvas(canvas_frame,background='white')
         self.canvas.grid(row=0, column=0,sticky=tk.NSEW)
-      
 
 
         self.canvas.bind("<Motion>", self.mouse_on_canvas)#self.canvas.bind("<B1-Motion>", self.mouse_move)
@@ -225,11 +226,13 @@ class MainGUI(tk.Frame):
            self.factor=self.factor-0.05
            self.showImage(self.image_paths[self.image_index])
 
+
     def revise_lable_file(self):
         img_dir = []
         labels = []
         f1 = open(label_name, "r")
         label_list = f1.readlines()
+        self.root.destroy()
         for index in range(int(len(label_list) / 2)):
             file = label_list[2 * index]
             file = file.replace("\n", "")
@@ -240,9 +243,8 @@ class MainGUI(tk.Frame):
 
         for root, dirs, files in os.walk(self.work_dir):
             for i in range(0, len(files)):
-               # img = cv2.imread(file_name + files[i])
                 text = labels[img_dir.index(files[i])]
-                win = tk.Toplevel()
+                win = tk.Tk()
                 photo = PhotoImage(format="png",
                                    file=self.work_dir + '/'+files[i])  # PhotoImagecan be used for GIF and PPM/PGM color bitmaps
                 imgLabel = Label(win, image=photo)
@@ -254,7 +256,8 @@ class MainGUI(tk.Frame):
                 button = tk.Button(win, text="确认", command=lambda: write(files[i], entry, win))
                 button.pack()  # 加载到窗体，
                 win.mainloop()
-
+        root = tk.Tk()
+        set_mainUI(root)
 
 
 
@@ -262,6 +265,7 @@ class MainGUI(tk.Frame):
     def radiobutton_change(self):
         #print(self.lable_Type.get())
         self.number = 0
+
 
     #设置工作目录
     def set_work_dir(self):
@@ -411,7 +415,6 @@ class MainGUI(tk.Frame):
         if self.zoom:
             width = int(w * self.factor)
             height = int(h * self.factor)
-            self.zoom=False
         else:
             if w_box == 0 or h_box == 0:
                 w_box = w
@@ -449,13 +452,13 @@ def tk_scale(new_filename_path):
     button = tk.Button(win1, text="确认", command=lambda: write(new_filename_path, entry, win1))
     button.pack()  # 加载到窗体，
     win1.mainloop()
-def write(file, entry, win):
+def write(filename, entry, win):
     global pressure
     pressure = entry.get()
     file_handle = open('2.txt', mode='a+')
-    file_handle.write(file + '\n' + pressure + ' \n')
+    file_handle.write(filename + '\n' + pressure + ' \n')
     file_handle.close()
-   # shutil.move('split_result/' + file, 'result_data/' + file)
+    # shutil.move('split_result/' + file, 'result_data/' + file)
     win.destroy()
 #获取屏幕大小
 def get_screen_size(window):
@@ -474,5 +477,5 @@ def center_window(root, width, height):
 
 if (__name__ == '__main__'):
     root = tk.Tk()
-    label_name='label.txt'
+    label_name='test.txt'
     set_mainUI(root)
