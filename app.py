@@ -3,14 +3,22 @@
 import os
 import filetype
 import tkinter as tk
-from lib import XML_LIB
+from LabelGui_lib import XML_LIB
 import tkinter.ttk as ttk
 from tkinter import simpledialog
 from PIL import Image, ImageTk
 import tkinter.messagebox as mb
 import tkinter.filedialog as dir
-from tkinter import PhotoImage,Label,Scrollbar,HORIZONTAL,VERTICAL,BOTTOM,X,Y,RIGHT
+from tkinter import PhotoImage,Label,Scrollbar,HORIZONTAL,VERTICAL,BOTTOM,X,Y,RIGHT,LEFT
 import shutil
+import tensorflow as tf
+from config import label_name, crnn_modelpath
+from CRNN_Keras.model_crnn import get_model
+from test import test
+from tensorflow.python.platform import gfile
+import cv2
+
+
 '''
 这是一个基于tkinter库的图像标注工具，目前支持标注矩形区域和散点区域，标注文件支持XML和JSON格式
 '''
@@ -211,6 +219,8 @@ class MainGUI(tk.Frame):
         self.zoomout = ttk.Button(self.frm_control, text='缩小图像', state=tk.DISABLED, command=self.zoomout_image)
         self.zoomout.grid(row=2, column=3, padx=5, sticky=tk.NSEW)
 
+        self.det_rec_image = ttk.Button(self.frm_control, text='检测识别', state=tk.DISABLED, command=self.det_rec_image)
+        self.det_rec_image.grid(row=1, column=4, padx=5, sticky=tk.NSEW)
 
 
     # 滚轮往下滚动，缩小
@@ -225,6 +235,36 @@ class MainGUI(tk.Frame):
         if self.factor>0.05:
            self.factor=self.factor-0.05
            self.showImage(self.image_paths[self.image_index])
+    def det_rec_image(self):
+        config = tf.ConfigProto(allow_soft_placement=True)
+        sess = tf.Session(config=config)
+        with gfile.FastGFile('text-detection-ctpn-master/ctpn.pb', 'rb') as f:
+            graph_def = tf.GraphDef()
+            graph_def.ParseFromString(f.read())
+            sess.graph.as_default()
+            tf.import_graph_def(graph_def, name='')
+        sess.run(tf.global_variables_initializer())
+
+        input_img = sess.graph.get_tensor_by_name('Placeholder:0')
+        output_cls_prob = sess.graph.get_tensor_by_name('Reshape_2:0')
+        output_box_pred = sess.graph.get_tensor_by_name('rpn_bbox_pred/Reshape_1:0')
+
+        ###load crnn model
+        keras_model = get_model(training=False)
+
+        try:
+            keras_model.load_weights(crnn_modelpath)
+            print("...Previous weight data Loading completed ...")
+        except:
+            raise Exception("No weight file!")
+
+        #### image
+        filenames = os.listdir(self.work_dir)
+        for filename in filenames:
+            test(self.work_dir+'/' + filename, sess, output_cls_prob, output_box_pred, input_img, keras_model)
+        win1 = tk.Toplevel()
+        label = tk.Label(win1, width=50, text="已完成!!", bg="white", fg="black")
+        label.pack()
 
 
     def revise_lable_file(self):
@@ -245,15 +285,15 @@ class MainGUI(tk.Frame):
             for i in range(0, len(files)):
                 text = labels[img_dir.index(files[i])]
                 win = tk.Tk()
+                img = cv2.imread(self.work_dir + '/' + files[i])
                 photo = PhotoImage(format="png",
                                    file=self.work_dir + '/'+files[i])  # PhotoImagecan be used for GIF and PPM/PGM color bitmaps
-                imgLabel = Label(win, image=photo)
-                imgLabel.pack()
+                Label(win, image=photo,width = 1000,height=img.shape[0],anchor='nw').pack()
 
-                entry = tk.Entry(win, width=80, font=("宋体", 20, "normal"), bg="white", fg="black")
+                entry = tk.Entry(win,width=100,font=("宋体", 15, "normal"))
                 entry.insert(0, text)
                 entry.pack()
-                button = tk.Button(win, text="确认", command=lambda: write(files[i], entry, win))
+                button = tk.Button(win, text="确认", command=lambda:auto_write(self.work_dir,files[i], entry, win))
                 button.pack()  # 加载到窗体，
                 win.mainloop()
         root = tk.Tk()
@@ -288,6 +328,7 @@ class MainGUI(tk.Frame):
             self.zoomin.config(state=tk.ACTIVE)
             self.zoomout.config(state=tk.ACTIVE)
             self.save_lable.config(state=tk.ACTIVE)
+            self.det_rec_image.config(state=tk.ACTIVE)
         else:
             mb.showinfo("提醒", "目录选择失败！")
 
@@ -367,15 +408,24 @@ class MainGUI(tk.Frame):
         if self.lable_Type == 1:
             if self.clicked:
                 self.clicked = False
-                origin_img=Image.open(self.image_paths[self.image_index])
-                box=[self.x/self.factor ,self.y/self.factor  ,event.x/self.factor,event.y/self.factor]
-                new_img=origin_img.crop(box)
-                all_image=self.image_paths[self.image_index].split('/')
-                new_filename=all_image[-1][:-4]+'_'+str(int(self.factor * self.x))+'_'+str(int(self.factor * self.y))+'.png'
-                new_filename_path='new_image/'+new_filename
-                new_img.save(new_filename_path)
                 if self.save_lables:
-                   tk_scale(new_filename_path)
+                    origin_img=Image.open(self.image_paths[self.image_index])
+                    box=[self.x/self.factor ,self.y/self.factor  ,event.x/self.factor,event.y/self.factor]
+                    new_img=origin_img.crop(box)
+                    all_image=self.image_paths[self.image_index].split('/')
+                    new_filename=all_image[-1][:-4]+'_'+str(int(self.factor * self.x))+'_'+str(int(self.factor * self.y))+'.png'
+                    new_filename_path='hand_detect_recognition/split_label/'+new_filename
+                    new_img.save(new_filename_path)
+                    tk_scale(new_filename_path)
+                else:
+                    origin_img = Image.open(self.image_paths[self.image_index])
+                    box = [self.x / self.factor, self.y / self.factor, event.x / self.factor, event.y / self.factor]
+                    new_img = origin_img.crop(box)
+                    all_image = self.image_paths[self.image_index].split('/')
+                    new_filename = all_image[-1][:-4] + '_' + str(int(self.factor * self.x)) + '_' + str(
+                        int(self.factor * self.y)) + '.png'
+                    new_filename_path = 'hand_detect_recognition/only_split/' + new_filename
+                    new_img.save(new_filename_path)
             else:
                 self.x = event.x
                 self.y = event.y
@@ -455,10 +505,18 @@ def tk_scale(new_filename_path):
 def write(filename, entry, win):
     global pressure
     pressure = entry.get()
-    file_handle = open('2.txt', mode='a+')
+    file_handle = open('hand_detect_recognition/label.txt', mode='a+')
     file_handle.write(filename + '\n' + pressure + ' \n')
     file_handle.close()
-    # shutil.move('split_result/' + file, 'result_data/' + file)
+    #shutil.move('/'+ filename, 'hand_detect_recognitiom/split_label/' + filename)
+    win.destroy()
+def auto_write(work_dir, filename, entry, win):
+    global pressure
+    pressure = entry.get()
+    file_handle = open('auto_detect_recognition/newlabel.txt', mode='a+')
+    file_handle.write(filename + '\n' + pressure + ' \n')
+    file_handle.close()
+    shutil.move(work_dir + '/' + filename, 'auto_detect_recognition/result_data/' + filename)
     win.destroy()
 #获取屏幕大小
 def get_screen_size(window):
@@ -477,5 +535,5 @@ def center_window(root, width, height):
 
 if (__name__ == '__main__'):
     root = tk.Tk()
-    label_name='test.txt'
+
     set_mainUI(root)
