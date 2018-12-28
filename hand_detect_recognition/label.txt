@@ -1,0 +1,2 @@
+hand_detect_recognition/split_label/003_107_122.png
+姓名：陈佳佳 
